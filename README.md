@@ -40,6 +40,24 @@ arbitrum-rwa-property/
 
 ## 📖 Panduan Integrasi On-Chain
 
-Untuk panduan lengkap langkah-demi-langkah mengubah template mock ini menjadi **Full On-Chain dApp**, silakan baca:
+Panduan lengkap kode dan langkah-demi-langkah tersedia di:  
 👉 **[PANDUAN-INTEGRASI-ONCHAIN.md](./PANDUAN-INTEGRASI-ONCHAIN.md)**
+
+### 📌 Ringkasan Integrasi On-Chain (Langkah 2 - 5)
+
+Berikut adalah panduan cepat mengenai bagian mana saja yang perlu disesuaikan, dihapus, atau ditambahkan saat beralih dari Mock ke On-Chain:
+
+| Langkah | Lokasi File / Bagian | ✏️ Yang Diganti / ❌ Dihapus | ➕ Yang Dimasukkan / Ditambahkan |
+| :--- | :--- | :--- | :--- |
+| **Langkah 2** | `src/constants/contract.js` | • Ganti `PROPERTY_CONTRACT_ADDRESS`<br>• Hapus `//` comment pada `FRACTIONAL_PROPERTY_ABI` | • Tempelkan CA dari Remix<br>• Tempelkan JSON ABI dari Remix |
+| **Langkah 3.1** | `src/App.jsx` (Import atas) | • Ganti import React biasa | • Tambahkan `useEffect`, `useCallback`, `ethers`<br>• Import konstanta dari `./constants/contract` |
+| **Langkah 3.2** | `src/App.jsx` (State) | *(Tidak ada yang dihapus)* | • `const [isConnecting, setIsConnecting] = useState(false);` |
+| **Langkah 3.3** | `src/App.jsx` (Helper) | *(Tidak ada yang dihapus)* | • Fungsi `getProvider()` (Filter anti-tabrakan MetaMask vs Rabby) |
+| **Langkah 3.4** | `src/App.jsx` (Connect) | • Hapus alert dummy mock | • Fungsi `ensureArbitrumNetwork()`<br>• Request akun riil via `eth_requestAccounts` |
+| **Langkah 3.5** | `src/App.jsx` (Read Data) | *(Tidak ada yang dihapus)* | • Fungsi `fetchBlockchainData` via `useCallback`<br>• Hook `useEffect` untuk fetch otomatis |
+| **Langkah 3.6** | `src/App.jsx` (Write Data) | • Hapus simulasi lokal `setTimeout` | • Panggilan riil `contract.buyFractions`<br>• Buffer gas 50% `maxFeePerGas` (Anti-Revert L2) |
+| **Langkah 3.7** | `src/App.jsx` (Navbar JSX) | • Ganti `isConnecting={false}` | • Ubah prop menjadi `isConnecting={isConnecting}` |
+| **Langkah 4** | Browser `localhost:5173` | • Transaksi mock statis | • Pengujian transaksi riil dengan sign di MetaMask |
+| **Langkah 5** | Arbiscan Sepolia | • **HAPUS TOTAL** teks pada *"Constructor Arguments"* | • Tempelkan kode `FractionalProperty.sol` single-file |
+
 

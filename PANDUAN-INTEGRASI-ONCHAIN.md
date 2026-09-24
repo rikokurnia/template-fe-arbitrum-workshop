@@ -12,6 +12,21 @@ Dokumen ini adalah panduan praktis langkah-demi-langkah bagi mentor dan peserta 
 [6. Audit Dokumen IPFS di Arbiscan] ⬅️ [5. Verify Source Code (Centang Hijau)] ⬅️ [4. Eksekusi Transaksi di Localhost]
 ```
 
+### 📌 Cheatsheet Ringkasan: Apa yang Diganti, Dihapus & Dimasukkan (Langkah 2 - 5)
+
+| Langkah | Lokasi File / Bagian | ✏️ Yang Diganti / ❌ Dihapus | ➕ Yang Dimasukkan / Ditambahkan |
+| :--- | :--- | :--- | :--- |
+| **Langkah 2** | `src/constants/contract.js` | • Ganti `PROPERTY_CONTRACT_ADDRESS`<br>• Hapus `//` comment pada `FRACTIONAL_PROPERTY_ABI` | • CA hasil deploy Remix<br>• Array JSON ABI dari Remix |
+| **Langkah 3.1** | `src/App.jsx` (Header Import) | • Ganti import React sederhana | • Import `useEffect`, `useCallback`, `ethers`<br>• Import konstanta dari `./constants/contract` |
+| **Langkah 3.2** | `src/App.jsx` (Deklarasi State) | *(Tidak ada yang dihapus)* | • `const [isConnecting, setIsConnecting] = useState(false);` |
+| **Langkah 3.3** | `src/App.jsx` (Fungsi Helper) | *(Tidak ada yang dihapus)* | • Fungsi `getProvider()` (Filter anti-tabrakan MetaMask vs Rabby) |
+| **Langkah 3.4** | `src/App.jsx` (Fungsi Connect) | • Hapus alert dummy mock | • Fungsi `ensureArbitrumNetwork()`<br>• `handleConnectWallet` riil via `eth_requestAccounts` |
+| **Langkah 3.5** | `src/App.jsx` (Read Data) | *(Tidak ada yang dihapus)* | • Fungsi `fetchBlockchainData` via `useCallback`<br>• Hook `useEffect` untuk fetch otomatis |
+| **Langkah 3.6** | `src/App.jsx` (Write Data) | • Hapus simulasi lokal `setTimeout` | • Panggilan riil `contract.buyFractions`<br>• Buffer gas 50% `maxFeePerGas` (Anti-Revert L2) |
+| **Langkah 3.7** | `src/App.jsx` (Tag `<Navbar />`) | • Ganti `isConnecting={false}` | • Ubah prop menjadi `isConnecting={isConnecting}` |
+| **Langkah 4** | Browser `http://localhost:5173` | • Transaksi mock statis | • Pengujian interaksi wallet riil, sign transaksi ETH, kuota berkurang & saldo bertambah |
+| **Langkah 5** | Arbiscan Sepolia Verify | • **HAPUS TOTAL** teks catatan pada kotak *"Constructor Arguments"* | • Paste single-file kode `FractionalProperty.sol` ke kotak kode sumber |
+
 ---
 
 ## 🚀 Langkah 1: Deploy Smart Contract Modern di Remix IDE
@@ -149,13 +164,17 @@ contract FractionalProperty {
 
 ## ⚙️ Langkah 2: Konfigurasi di `src/constants/contract.js`
 
-Buka file `src/constants/contract.js` di proyek frontend Anda, lalu masukkan:
-1. **Contract Address** hasil deploy pada variabel `PROPERTY_CONTRACT_ADDRESS`.
-2. **JSON ABI** yang disalin dari Remix ke variabel `FRACTIONAL_PROPERTY_ABI`.
+> 📍 **Lokasi File**: `src/constants/contract.js`  
+> ✏️ **Yang Diganti**: Nilai string `PROPERTY_CONTRACT_ADDRESS` (baris 5)  
+> ❌ **Yang Dihapus / Di-uncomment**: Tanda komentar `//` pada `// export const FRACTIONAL_PROPERTY_ABI =` (baris 32)  
+> ➕ **Yang Dimasukkan**: Salinan JSON ABI dari Remix ditempelkan ke variabel `FRACTIONAL_PROPERTY_ABI`
 
 ```javascript
-export const PROPERTY_CONTRACT_ADDRESS = "0x5b8e4E04568abBFaA3ef8270891686be718f9c39"; // Ganti dengan CA Anda
+// 1. ALAMAT SMART CONTRACT RWA
+// Ganti alamat placeholder 0x000... dengan Contract Address hasil deploy Anda dari Remix:
+export const PROPERTY_CONTRACT_ADDRESS = "0x5b8e4E04568abBFaA3ef8270891686be718f9c39"; 
 
+// 2. PARAMETER JARINGAN ARBITRUM SEPOLIA (EIP-3085)
 export const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
 export const ARBITRUM_SEPOLIA_HEX_ID = "0x66eee";
 
@@ -167,8 +186,10 @@ export const ARBITRUM_SEPOLIA_NETWORK_PARAMS = {
   blockExplorerUrls: ["https://sepolia.arbiscan.io"]
 };
 
+// 3. APPLICATION BINARY INTERFACE (ABI)
+// Uncomment dan tempelkan (paste) array JSON ABI dari tombol 'ABI' Remix di sini:
 export const FRACTIONAL_PROPERTY_ABI = [
-  // Paste JSON ABI dari Remix di sini
+  // Paste JSON ABI dari Remix di sini [...]
 ];
 ```
 
@@ -176,23 +197,58 @@ export const FRACTIONAL_PROPERTY_ABI = [
 
 ## 💻 Langkah 3: Integrasi Web3 di `src/App.jsx`
 
-Buka file `src/App.jsx` dan terapkan 4 fondasi berikut:
+Buka file `src/App.jsx`. Terapkan 7 penyesuaian terstruktur berikut:
 
-### 1. Import Ethers & Dependencies
+### 3.1. Import Ethers & Konfigurasi Kontrak
+> 📍 **Lokasi**: Baris 1-13 (paling atas file)  
+> ✏️ **Yang Diganti**: `import React, { useState } from 'react';`  
+> ➕ **Yang Dimasukkan**: Tambahkan `useEffect`, `useCallback`, pustaka `ethers`, dan impor konstanta kontrak  
+> 💡 *Catatan*: Mencegah error `ReferenceError: useCallback is not defined` dan `ReferenceError: ethers is not defined`.
+
 ```javascript
 import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
+import Navbar from './components/Navbar';
+import PropertyCard from './components/PropertyCard';
+import InvestorPortfolio from './components/InvestorPortfolio';
+import InvestBox from './components/InvestBox';
+import TransactionHistory from './components/TransactionHistory';
 import {
   PROPERTY_CONTRACT_ADDRESS,
   FRACTIONAL_PROPERTY_ABI,
   ARBITRUM_SEPOLIA_HEX_ID,
   ARBITRUM_SEPOLIA_NETWORK_PARAMS
 } from './constants/contract';
+import './App.css';
 ```
 
-### 2. Provider Anti-Tabrakan Ekstensi (Solusi Rabby vs MetaMask)
-Mencegah error `wallet must has at least one account`:
+---
+
+### 3.2. Tambah State `isConnecting`
+> 📍 **Lokasi**: Di dalam `export default function App()`, area deklarasi state (sekitar baris 25)  
+> ➕ **Yang Dimasukkan**: `const [isConnecting, setIsConnecting] = useState(false);`  
+> 💡 *Catatan*: Mencegah error `ReferenceError: setIsConnecting is not defined` saat tombol connect wallet ditekan.
+
 ```javascript
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  // Tambahkan baris state ini: 👇
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const [isTransacting, setIsTransacting] = useState(false);
+  const [txStatus, setTxStatus] = useState(null);
+  const [txHash, setTxHash] = useState(null);
+```
+
+---
+
+### 3.3. Helper Provider Anti-Tabrakan Ekstensi (`getProvider`)
+> 📍 **Lokasi**: Di atas fungsi koneksi wallet (sekitar baris 70)  
+> ➕ **Yang Dimasukkan**: Fungsi helper `getProvider()`  
+> 💡 *Catatan*: Jika browser memasang Rabby Wallet dan MetaMask sekaligus, fungsi ini memfilter agar MetaMask asli yang dipanggil. Mencegah error penolakan `wallet must has at least one account (code 4001)`.
+
+```javascript
+  // Helper: Deteksi provider MetaMask asli bebas tabrakan ekstensi Rabby
   const getProvider = () => {
     if (typeof window === 'undefined' || !window.ethereum) return undefined;
     if (window.ethereum.providers?.length) {
@@ -205,8 +261,15 @@ Mencegah error `wallet must has at least one account`:
   };
 ```
 
-### 3. Connect Wallet & Auto-Switch Network
+---
+
+### 3.4. Koneksi Wallet Asli & Auto-Switch Network
+> 📍 **Lokasi**: Menggantikan fungsi `handleConnectWallet` lama (sekitar baris 80-110)  
+> ❌ **Yang Dihapus**: Logika `alert("Mode Mock Frontend: ...")` lama  
+> ➕ **Yang Dimasukkan**: Fungsi `ensureArbitrumNetwork` dan handler `handleConnectWallet` baru yang meminta akun nyata dari MetaMask
+
 ```javascript
+  // 1. Memastikan jaringan dompet berada di Arbitrum Sepolia
   const ensureArbitrumNetwork = async () => {
     const provider = getProvider();
     if (!provider) return;
@@ -216,6 +279,7 @@ Mencegah error `wallet must has at least one account`:
         params: [{ chainId: ARBITRUM_SEPOLIA_HEX_ID }]
       });
     } catch (err) {
+      // Error 4902: Jaringan belum terdaftar di MetaMask, minta daftarkan otomatis
       if (err.code === 4902) {
         await provider.request({
           method: 'wallet_addEthereumChain',
@@ -227,28 +291,41 @@ Mencegah error `wallet must has at least one account`:
     }
   };
 
+  // 2. Handler tombol Connect Wallet
   const handleConnectWallet = async () => {
     const provider = getProvider();
     if (!provider) {
-      alert("Ekstensi dompet tidak terdeteksi!");
+      alert("Ekstensi MetaMask tidak terdeteksi! Silakan instal MetaMask.");
       return;
     }
+
     try {
       setIsConnecting(true);
-      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const accounts = await provider.request({
+        method: 'eth_requestAccounts'
+      });
       await ensureArbitrumNetwork();
-      setAccount(accounts[0]);
-      await fetchBlockchainData(accounts[0]);
+
+      const connectedAddr = accounts[0];
+      setAccount(connectedAddr);
+      await fetchBlockchainData(connectedAddr);
     } catch (err) {
-      console.error("Gagal konek wallet:", err);
+      console.error("Gagal menghubungkan wallet:", err);
     } finally {
       setIsConnecting(false);
     }
   };
 ```
 
-### 4. Read Calls (Membaca Data On-Chain Gratis Gas)
+---
+
+### 3.5. Read Calls (Membaca Data On-Chain Gratis Gas)
+> 📍 **Lokasi**: Di bawah fungsi koneksi wallet (sekitar baris 115-160)  
+> ➕ **Yang Dimasukkan**: Fungsi `fetchBlockchainData = useCallback(...)` dan hook `useEffect`  
+> 💡 *Catatan*: Membaca fungsi view (`propertyName`, `availableFractions`, dsb.) secara otomatis setiap kali web pertama kali dibuka atau akun dompet berubah.
+
 ```javascript
+  // Membaca data on-chain dari Arbitrum Sepolia tanpa biaya gas
   const fetchBlockchainData = useCallback(async (userAddr) => {
     const providerObj = getProvider();
     if (!providerObj || !PROPERTY_CONTRACT_ADDRESS) return;
@@ -261,6 +338,7 @@ Mencegah error `wallet must has at least one account`:
         provider
       );
 
+      // Baca data umum properti
       const [name, sym, docURI, priceWei, total, available] = await Promise.all([
         contract.propertyName(),
         contract.propertySymbol(),
@@ -277,23 +355,29 @@ Mencegah error `wallet must has at least one account`:
       setTotalFractions(Number(total));
       setAvailableFractions(Number(available));
 
+      // Baca saldo fraksi investor jika akun sudah terhubung
       if (userAddr) {
         const bal = await contract.getInvestorFractions(userAddr);
         setMyFractions(Number(bal));
       }
     } catch (err) {
-      console.error("Gagal baca data on-chain:", err);
+      console.error("Gagal membaca data on-chain:", err);
     }
   }, []);
 
+  // Hook untuk memicu pembacaan data otomatis saat aplikasi dimuat
   useEffect(() => {
     fetchBlockchainData(account);
   }, [account, fetchBlockchainData]);
 ```
 
-### 5. Write Calls (Transaksi dengan Buffer Gas Arbitrum L2)
-> ⚠️ **Catatan Kunci:** Menggunakan buffer `maxFeePerGas: 150%` mencegah error sequencer Arbitrum:  
-> `"max fee per gas less than block base fee"`.
+---
+
+### 3.6. Write Calls (Transaksi dengan Buffer Gas Arbitrum L2)
+> 📍 **Lokasi**: Menggantikan fungsi `handleInvest` simulasi lama (sekitar baris 170-220)  
+> ❌ **Yang Dihapus**: Seluruh blok `setTimeout(...)` simulasi lokal lama  
+> ➕ **Yang Dimasukkan**: Pemanggilan on-chain `contract.buyFractions` dengan buffer `maxFeePerGas: 150%`  
+> ⚠️ **Catatan Kunci**: Arbitrum L2 memproduksi blok sub-detik (~250ms) sehingga `baseFee` berfluktuasi cepat. Menambahkan buffer `maxFeePerGas: 150%` dari `provider.getFeeData()` **wajib dilakukan** untuk mencegah error: `"max fee per gas less than block base fee"`.
 
 ```javascript
   const handleInvest = async (quantity) => {
@@ -304,9 +388,13 @@ Mencegah error `wallet must has at least one account`:
 
     try {
       setIsTransacting(true);
-      setTxStatus({ type: 'info', message: 'Menunggu konfirmasi di MetaMask...' });
+      setTxStatus({
+        type: 'info',
+        message: 'Menunggu persetujuan transaksi di MetaMask...'
+      });
 
-      const provider = new ethers.BrowserProvider(getProvider() || window.ethereum);
+      const activeProvider = getProvider() || window.ethereum;
+      const provider = new ethers.BrowserProvider(activeProvider);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(
         PROPERTY_CONTRACT_ADDRESS,
@@ -314,13 +402,19 @@ Mencegah error `wallet must has at least one account`:
         signer
       );
 
+      // 1. Hitung total nilai ETH (0.001 ETH per lembar fraksi)
       const costWei = ethers.parseEther((quantity * parseFloat(priceEth)).toFixed(4));
 
-      // Buffer 50% untuk fluktuasi baseFee Layer-2 Arbitrum
+      // 2. Ambil data gas fee saat ini dan beri buffer 50% (Anti-Revert BaseFee L2)
       const feeData = await provider.getFeeData();
-      const maxFeePerGas = feeData.maxFeePerGas ? (feeData.maxFeePerGas * 150n) / 100n : undefined;
-      const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ? (feeData.maxPriorityFeePerGas * 150n) / 100n : undefined;
+      const maxFeePerGas = feeData.maxFeePerGas 
+        ? (feeData.maxFeePerGas * 150n) / 100n 
+        : undefined;
+      const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas 
+        ? (feeData.maxPriorityFeePerGas * 150n) / 100n 
+        : undefined;
 
+      // 3. Kirim transaksi dengan parameter gas yang aman
       const tx = await contract.buyFractions(quantity, {
         value: costWei,
         gasLimit: 350000n,
@@ -328,7 +422,12 @@ Mencegah error `wallet must has at least one account`:
         maxPriorityFeePerGas
       });
 
-      setTxStatus({ type: 'info', message: 'Memproses transaksi di sequencer Arbitrum...' });
+      setTxStatus({
+        type: 'info',
+        message: 'Transaksi dikirim ke sequencer Arbitrum (~1-2 detik)...'
+      });
+
+      // 4. Tunggu konfirmasi blok on-chain
       const receipt = await tx.wait();
       setTxHash(tx.hash);
 
@@ -345,9 +444,10 @@ Mencegah error `wallet must has at least one account`:
         message: `Sukses membeli ${quantity} fraksi on-chain di blok #${receipt.blockNumber}!`
       });
 
+      // Refresh data kuota & portofolio on-chain secara instan
       await fetchBlockchainData(account);
     } catch (err) {
-      console.error("Transaksi gagal:", err);
+      console.error("Transaksi on-chain gagal:", err);
       let errMsg = "Transaksi dibatalkan atau gagal dieksekusi.";
       if (err.reason) errMsg = err.reason;
       else if (err.message && err.message.includes("user rejected")) {
@@ -362,36 +462,56 @@ Mencegah error `wallet must has at least one account`:
 
 ---
 
+### 3.7. Update Props pada Komponen `<Navbar />`
+> 📍 **Lokasi**: Di dalam blok `return (` pada tag `<Navbar ... />` (sekitar baris 240)  
+> ✏️ **Yang Diganti**: Ubah prop `isConnecting={false}` menjadi `isConnecting={isConnecting}`  
+> 💡 *Catatan*: Agar tombol otomatis menampilkan status teks *"Menghubungkan..."* saat popup konfirmasi MetaMask sedang terbuka.
+
+```jsx
+      <Navbar
+        account={account}
+        onConnect={handleConnectWallet}
+        isConnecting={isConnecting} // <-- Ubah dari false menjadi isConnecting
+        connectError={null}
+        onDismissConnectError={() => { }}
+      />
+```
+
+---
+
 ## 🧪 Langkah 4: Uji Coba Transaksi di Localhost
 
-1. Jalankan server lokal:
-   ```bash
-   npm run dev
-   ```
-2. Buka `http://localhost:5173`:
-   - Klik **Connect Wallet** ➡️ Popup MetaMask muncul dan terhubung ke Arbitrum Sepolia.
-   - Masukkan kuota pembelian fraksi (misal `1` atau `2`) ➡️ Klik **Konfirmasi & Beli**.
-   - Setujui transaksi di MetaMask ➡️ Dalam ~1-2 detik transaksi sukses terkonfirmasi, sisa kuota berkurang, dan portofolio Anda bertambah secara real-time!
+> 📍 **Lokasi Pengujian**: Terminal & Browser `http://localhost:5173`  
+> 🎯 **Target Verifikasi**:
+> 1. Klik tombol **Connect Wallet**: Ekstensi MetaMask terbuka, meminta izin koneksi, dan alamat dompet (misal `0xd1C4...1cA4`) langsung tampil di pojok kanan atas.
+> 2. Form Pembelian Fraksi: Masukkan jumlah (misal `1` fraksi seharga `0.001 ETH`) ➡️ Klik **🏢 Konfirmasi & Beli**.
+> 3. Konfirmasi di MetaMask: Pop-up MetaMask menampilkan transfer `0.001 ETH` + estimasi gas fee Arbitrum yang sangat kecil (~0.00003 ETH).
+> 4. Hasil: Dalam ~1-2 detik transaksi terkonfirmasi, banner hijau sukses muncul dengan nomor blok, saldo fraksi bertambah, kuota sisa berkurang, dan riwayat transaksi lokal tercatat!
 
 ---
 
 ## 🛡️ Langkah 5: Verifikasi Source Code di Arbiscan (Mendapatkan Centang Hijau)
 
-Agar tab **Read Contract** dan **Write Contract** terbuka untuk publik di Arbiscan:
+> 📍 **Lokasi Halaman**: Kunjungi Arbiscan Sepolia di `https://sepolia.arbiscan.io/address/<CONTRACT_ADDRESS>` ➡️ Klik tab **Contract** ➡️ Klik tautan biru **Verify and Publish**
 
-1. Kunjungi halaman kontrak Anda di Arbiscan Sepolia:  
-   `https://sepolia.arbiscan.io/address/<CONTRACT_ADDRESS>`
-2. Klik tab **Contract** ➡️ Klik tautan biru **Verify and Publish**.
-3. Konfigurasi:
-   - **Compiler Type**: `Solidity (Single file)`
-   - **Compiler Version**: Sesuaikan versi compiler Remix Anda (misal `v0.8.34+commit.80d5c536`)
-   - **Open Source License Type**: `MIT License (MIT)`
-   - Klik **Continue**.
-4. Halaman Kode:
-   - Di kotak besar **"Enter the Solidity Contract Code below \*"**: Tempelkan (*paste*) seluruh kode `FractionalProperty.sol`.
-   - ⚠️ **Sangat Penting:** Pada kotak **"Constructor Arguments ABI-encoded"** di bagian bawah, **HAPUS SELURUH TEKS CATATAN SAMPAI KOSONG TOTAL!** *(karena kontrak ini tidak memiliki parameter constructor).*
-5. Selesaikan captcha Cloudflare ➡️ Klik **Verify and Publish**.
-6. **Selesai!** Arbiscan akan menampilkan centang hijau: `Contract Source Code Verified`.
+### 1. Pengaturan Awal Formulir Verifikasi:
+- **Compiler Type**: Pilih **`Solidity (Single file)`**
+- **Compiler Version**: Pilih versi compiler yang sesuai dengan yang dipakai di Remix *(misal: `v0.8.34+commit.80d5c536`)*
+- **Open Source License Type**: Pilih **`3) MIT License (MIT)`**
+- Klik **Continue**.
+
+### 2. Pengisian Kode Sumber:
+- 📝 **Kotak Besar ("Enter the Solidity Contract Code below *")**:  
+  **WAJIB DIISI!** Tempelkan (*paste*) seluruh kode sumber `FractionalProperty.sol` lengkap dari Remix ke dalam kotak ini.
+
+- ❌ **Kotak Kecil ("Constructor Arguments ABI-encoded")**:  
+  ⚠️ **WAJIB DIHAPUS TOTAL SAMPAI KOSONG MELOMPONG!**  
+  *Penyebab Error*: Arbiscan sering otomatis mengisi kotak ini dengan teks catatan bantuan:  
+  `Note: Unable to determine constructor arguments, please check and replace...`  
+  Karena constructor smart contract `FractionalProperty` **tidak memiliki parameter apa pun** (`constructor() { ... }`), kotak ini **harus dibersihkan sampai tidak ada teks sama sekali**. Jika tidak dikosongkan, form akan menolak dengan error merah: `Multi-line input is not supported, please use a single line only.`
+
+3. Selesaikan verifikasi Cloudflare / Captcha ➡️ Klik tombol biru **`Verify and Publish`**.
+4. **Selesai!** Arbiscan akan menampilkan centang hijau: **`Contract Source Code Verified`** dan tab **Read Contract** & **Write Contract** resmi terbuka penuh untuk publik! 🌐
 
 ---
 
