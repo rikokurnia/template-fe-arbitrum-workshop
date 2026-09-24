@@ -42,6 +42,7 @@ Sebelum memulai integrasi on-chain, pastikan perangkat dan peralatan berikut tel
   * Pasang ekstensi [MetaMask](https://metamask.io/).
   * Pastikan jaringan **Arbitrum Sepolia Testnet** (Chain ID: `421614` / `0x66eee`) siap digunakan.
   * Siapkan saldo testnet ETH Arbitrum Sepolia untuk gas fee (bisa klaim di [Chainlink Faucet](https://faucets.chain.link/arbitrum-sepolia) atau faucet Arbitrum Sepolia lainnya).
+  * 💡 *Tips Penting Peserta:* Jika browser sudah memiliki ekstensi dompet lain (seperti Phantom, Rabby, Coinbase Wallet, OKX), disarankan membuat **Profil Browser Baru** khusus workshop yang hanya memasang MetaMask, atau matikan opsi *"Set as default wallet"* pada ekstensi lain agar tidak membajak (*hijack*) objek `window.ethereum`.
 
 ---
 
@@ -285,21 +286,31 @@ import './App.css';
 
 ---
 
-### 3.3. Helper Provider Anti-Tabrakan Ekstensi (`getProvider`)
+### 3.3. Helper Provider Anti-Tabrakan Ekstensi Multi-Wallet (`getProvider`)
 > 📍 **Lokasi**: Di atas fungsi koneksi wallet (sekitar baris 70)  
 > ➕ **Yang Dimasukkan**: Fungsi helper `getProvider()`  
-> 💡 *Catatan*: Jika browser memasang Rabby Wallet dan MetaMask sekaligus, fungsi ini memfilter agar MetaMask asli yang dipanggil. Mencegah error penolakan `wallet must has at least one account (code 4001)`.
+> 💡 *Catatan Masalah*: Banyak ekstensi dompet Web3 (seperti Rabby, Coinbase Wallet, Phantom EVM, OKX Wallet, Trust Wallet) otomatis menyetel flag `isMetaMask = true` ke `window.ethereum` agar dApp lawas tetap berfungsi. Fungsi helper ini menyaring array `window.ethereum.providers` secara ketat agar browser memilih instance **MetaMask asli**, sehingga mencegah error penolakan akun seperti `wallet must has at least one account (code 4001)`.
 
 ```javascript
-  // Helper: Deteksi provider MetaMask asli bebas tabrakan ekstensi Rabby
+  // Helper: Deteksi provider MetaMask asli bebas bentrok ekstensi lain (Rabby, Phantom, Coinbase, OKX, dll)
   const getProvider = () => {
     if (typeof window === 'undefined' || !window.ethereum) return undefined;
+
+    // Jika terpasang banyak ekstensi dompet di browser
     if (window.ethereum.providers?.length) {
       const realMetaMask = window.ethereum.providers.find(
-        (p) => p.isMetaMask && !p.isRabby
+        (p) =>
+          p.isMetaMask &&
+          !p.isRabby &&
+          !p.isCoinbaseWallet &&
+          !p.isPhantom &&
+          !p.isOkxWallet &&
+          !p.isTrustWallet &&
+          !p.isBraveWallet
       );
       if (realMetaMask) return realMetaMask;
     }
+
     return window.ethereum;
   };
 ```
