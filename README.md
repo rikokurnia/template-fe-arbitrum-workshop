@@ -21,20 +21,37 @@ arbitrum-rwa-property/
 └── vite.config.js
 ```
 
-## 🚀 Menjalankan Proyek Lokal
+## 🛠️ Prasyarat & Tools yang Dibutuhkan
 
-1. **Pasang dependensi**:
+Sebelum memulai, pastikan perangkat Anda telah terpasang:
+* **Code Editor**: [Visual Studio Code](https://code.visualstudio.com/)
+* **Node.js**: Versi LTS (**v18.x** atau **v20.x+**) beserta `npm` (cek via terminal: `node -v`)
+* **Browser**: Google Chrome atau Brave
+* **Web3 Wallet**: Ekstensi [MetaMask](https://metamask.io/) dengan jaringan **Arbitrum Sepolia Testnet** & saldo faucet ETH
+
+---
+
+## 🚀 Langkah Menjalankan Proyek di Terminal
+
+1. **Clone repository & masuk ke direktori**:
+   ```bash
+   git clone https://github.com/rikokurnia/template-fe-arbitrum-workshop.git
+   cd template-fe-arbitrum-workshop
+   ```
+
+2. **Pasang semua dependensi**:
    ```bash
    npm install
    ```
+   > 💡 *Catatan Ethers.js:* Pustaka `ethers` (`^6.17.0`) sudah terdaftar di `package.json`, sehingga otomatis terpasang saat `npm install`. Anda **tidak perlu** menjalankan `npm install ethers` lagi secara terpisah.
 
-2. **Jalankan development server**:
+3. **Jalankan development server**:
    ```bash
    npm run dev
    ```
 
-3. **Buka di browser**:
-   Kunjungi [http://localhost:5173](http://localhost:5173)
+4. **Buka di browser**:
+   Kunjungi [http://localhost:5173](http://localhost:5173). Tampilan awal aplikasi akan berjalan dalam **Mode Mock Frontend**.
 
 ---
 

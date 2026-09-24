@@ -29,6 +29,49 @@ Dokumen ini adalah panduan praktis langkah-demi-langkah bagi mentor dan peserta 
 
 ---
 
+## 🛠️ Prasyarat & Persiapan Lingkungan (Tools & Setup)
+
+Sebelum memulai integrasi on-chain, pastikan perangkat dan peralatan berikut telah disiapkan:
+
+### 1. Kebutuhan Perangkat Lunak (Tools):
+* **Code Editor**: [Visual Studio Code](https://code.visualstudio.com/) (atau editor teks pilihan Anda).
+* **Node.js**: Versi LTS (**v18.x** atau **v20.x+**) beserta `npm`.
+  * Verifikasi di terminal: `node -v` dan `npm -v`
+* **Browser Web**: Google Chrome, Brave, atau browser berbasis Chromium.
+* **Web3 Wallet Extension**:
+  * Pasang ekstensi [MetaMask](https://metamask.io/).
+  * Pastikan jaringan **Arbitrum Sepolia Testnet** (Chain ID: `421614` / `0x66eee`) siap digunakan.
+  * Siapkan saldo testnet ETH Arbitrum Sepolia untuk gas fee (bisa klaim di [Chainlink Faucet](https://faucets.chain.link/arbitrum-sepolia) atau faucet Arbitrum Sepolia lainnya).
+
+---
+
+### 2. Langkah Setup di Terminal:
+
+Buka terminal Anda (atau terminal bawaan VS Code) lalu jalankan perintah berikut secara berurutan:
+
+```bash
+# 1. Clone repositori template workshop
+git clone https://github.com/rikokurnia/template-fe-arbitrum-workshop.git
+cd template-fe-arbitrum-workshop
+
+# 2. Pasang seluruh dependensi proyek (Termasuk Ethers.js)
+npm install
+```
+
+> ❓ **Apakah kita perlu menjalankan `npm install ethers` lagi secara terpisah?**  
+> **Jawabannya: TIDAK PERLU!**  
+> Library `ethers` (versi `^6.17.0`) sudah didaftarkan di dalam file `package.json` template ini. Saat kamu mengeksekusi `npm install`, npm secara otomatis mengunduh dan memasang `ethers`, `react`, `lucide-react`, dan semua pustaka pendukung sekaligus.  
+> *(Catatan: Perintah `npm install ethers` baru wajib dijalankan jika Anda menginisiasi proyek React kosong dari nol).*
+
+```bash
+# 3. Jalankan development server lokal
+npm run dev
+```
+
+Buka URL **`http://localhost:5173`** di browser. Pada tahap awal ini, web akan berjalan dalam status **Mode Mock Frontend** (siap untuk diintegrasikan ke on-chain mengikuti Langkah 1 s/d 5 di bawah).
+
+---
+
 ## 🚀 Langkah 1: Deploy Smart Contract Modern di Remix IDE
 
 1. Buka **[https://remix.ethereum.org](https://remix.ethereum.org)**.
