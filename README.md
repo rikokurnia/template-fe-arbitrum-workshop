@@ -35,3 +35,11 @@ arbitrum-rwa-property/
 
 3. **Buka di browser**:
    Kunjungi [http://localhost:5173](http://localhost:5173)
+
+---
+
+## 📖 Panduan Integrasi On-Chain
+
+Untuk panduan lengkap langkah-demi-langkah mengubah template mock ini menjadi **Full On-Chain dApp**, silakan baca:
+👉 **[PANDUAN-INTEGRASI-ONCHAIN.md](./PANDUAN-INTEGRASI-ONCHAIN.md)**
+
