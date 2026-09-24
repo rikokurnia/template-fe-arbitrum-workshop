@@ -4,7 +4,6 @@ import Navbar from './components/Navbar';
 import PropertyCard from './components/PropertyCard';
 import InvestorPortfolio from './components/InvestorPortfolio';
 import InvestBox from './components/InvestBox';
-import IssuerPanel from './components/IssuerPanel';
 import TransactionHistory from './components/TransactionHistory';
 import {
   PROPERTY_CONTRACT_ADDRESS,
@@ -90,7 +89,6 @@ export default function App() {
   const [rawPriceWei, setRawPriceWei] = useState(ethers.parseEther('0.001'));
   const [myFractions, setMyFractions] = useState(10);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
-  const [isOwner, setIsOwner] = useState(true); // Default true agar Issuer Dashboard tampak di overview
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTransacting, setIsTransacting] = useState(false);
@@ -215,14 +213,13 @@ export default function App() {
       );
 
       // Baca metadata properti umum
-      const [name, sym, docURI, rawPrice, total, available, ownerAddr] = await Promise.all([
+      const [name, sym, docURI, rawPrice, total, available] = await Promise.all([
         contract.propertyName(),
         contract.propertySymbol(),
         contract.propertyDocumentURI(),
         contract.fractionPrice(),
         contract.totalFractions(),
-        contract.availableFractions(),
-        contract.owner()
+        contract.availableFractions()
       ]);
 
       setPropertyName(name);
@@ -242,7 +239,6 @@ export default function App() {
         ]);
 
         setMyFractions(Number(bal));
-        setIsOwner(currentAddr.toLowerCase() === ownerAddr.toLowerCase());
 
         // Hitung sisa waktu cooldown anti-spam
         const currentBlockTime = Math.floor(Date.now() / 1000);
@@ -251,7 +247,6 @@ export default function App() {
         setCooldownSeconds(remaining);
       } else {
         setMyFractions(0);
-        setIsOwner(false);
         setCooldownSeconds(0);
       }
     } catch (err) {
@@ -442,109 +437,7 @@ export default function App() {
     }
   };
 
-  // -------------------------------------------------------------
-  // RESTOCK FRAKSI PROPERTI (KHUSUS OWNER)
-  // -------------------------------------------------------------
-  const handleRestock = async (amount) => {
-    if (!isContractConfigured) {
-      setAvailableFractions((prev) => prev + amount);
-      setTotalFractions((prev) => prev + amount);
-      const mockHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
-      addTransaction({
-        hash: mockHash,
-        type: 'Restock Kuota',
-        description: `Penambahan Kuota ${amount} Fraksi`,
-        timestamp: Date.now(),
-        status: 'Sukses'
-      });
-      alert(`Simulasi: Berhasil menambah kuota penawaran sebanyak ${amount} fraksi!`);
-      return;
-    }
 
-    try {
-      setIsTransacting(true);
-      const activeProvider = getInjectedProvider() || window.ethereum;
-      const provider = new ethers.BrowserProvider(activeProvider);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        PROPERTY_CONTRACT_ADDRESS,
-        FRACTIONAL_PROPERTY_ABI,
-        signer
-      );
-
-      const tx = await contract.restockFractions(amount, {
-        gasLimit: 250000n
-      });
-      await tx.wait();
-
-      addTransaction({
-        hash: tx.hash,
-        type: 'Restock Kuota',
-        description: `Penambahan Kuota ${amount} Fraksi`,
-        timestamp: Date.now(),
-        status: 'Sukses'
-      });
-
-      alert(`Berhasil menambah kuota penawaran sebanyak ${amount} fraksi!`);
-      await fetchBlockchainData(account);
-    } catch (err) {
-      console.error("Gagal restock fraksi:", err);
-      alert("Gagal menambah kuota fraksi.");
-    } finally {
-      setIsTransacting(false);
-    }
-  };
-
-  // -------------------------------------------------------------
-  // WITHDRAW HASIL INVESTASI ETH (KHUSUS OWNER)
-  // -------------------------------------------------------------
-  const handleWithdraw = async () => {
-    if (!isContractConfigured) {
-      const mockHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
-      addTransaction({
-        hash: mockHash,
-        type: 'Tarik Modal',
-        description: 'Penarikan Seluruh Saldo Modal ETH',
-        timestamp: Date.now(),
-        status: 'Sukses'
-      });
-      alert("Simulasi: Seluruh modal investasi ETH berhasil ditarik ke dompet pengelola!");
-      return;
-    }
-
-    try {
-      setIsTransacting(true);
-      const activeProvider = getInjectedProvider() || window.ethereum;
-      const provider = new ethers.BrowserProvider(activeProvider);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        PROPERTY_CONTRACT_ADDRESS,
-        FRACTIONAL_PROPERTY_ABI,
-        signer
-      );
-
-      const tx = await contract.withdrawFunds({
-        gasLimit: 250000n
-      });
-      await tx.wait();
-
-      addTransaction({
-        hash: tx.hash,
-        type: 'Tarik Modal',
-        description: 'Penarikan Seluruh Saldo Modal ETH',
-        timestamp: Date.now(),
-        status: 'Sukses'
-      });
-
-      alert("Seluruh modal investasi ETH berhasil dicairkan ke dompet pengelola!");
-      await fetchBlockchainData(account);
-    } catch (err) {
-      console.error("Gagal menarik dana investasi:", err);
-      alert("Gagal menarik dana.");
-    } finally {
-      setIsTransacting(false);
-    }
-  };
 
   // -------------------------------------------------------------
   // SINKRONISASI AKUN & POLLING BERKALA DATA ON-CHAIN
@@ -662,13 +555,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Panel Administratif Khusus Pengelola Aset (Owner) */}
-        <IssuerPanel
-          isOwner={isOwner}
-          onRestock={handleRestock}
-          onWithdraw={handleWithdraw}
-          isTransacting={isTransacting}
-        />
+
 
         {/* Riwayat Transaksi On-Chain Lokal */}
         <TransactionHistory

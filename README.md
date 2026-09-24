@@ -12,7 +12,6 @@ arbitrum-rwa-property/
 │   │   ├── PropertyCard.jsx       # Informasi properti & sertifikat IPFS
 │   │   ├── InvestorPortfolio.jsx  # Portofolio kepemilikan unit fraksi
 │   │   ├── InvestBox.jsx          # Form input investasi unit fraksi
-│   │   ├── IssuerPanel.jsx        # Panel pengelola aset (Restock & Withdraw)
 │   │   └── TransactionHistory.jsx # Riwayat transaksi & link Arbiscan
 │   ├── App.jsx                    # Komponen utama penampung state UI
 │   ├── App.css                    # Tata letak grid dashboard & card styling
