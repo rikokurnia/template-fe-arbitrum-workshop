@@ -268,20 +268,29 @@ import './App.css';
 
 ---
 
-### 3.2. Tambah State `isConnecting`
-> 📍 **Lokasi**: Di dalam `export default function App()`, area deklarasi state (sekitar baris 25)  
-> ➕ **Yang Dimasukkan**: `const [isConnecting, setIsConnecting] = useState(false);`  
-> 💡 *Catatan*: Mencegah error `ReferenceError: setIsConnecting is not defined` saat tombol connect wallet ditekan.
+### 3.2. Tambah State `isConnecting` & Timer Cooldown
+> 📍 **Lokasi**: Di dalam `export default function App()`, area deklarasi state (sekitar baris 25-50)  
+> ➕ **Yang Dimasukkan**: State `isConnecting` dan hook `useEffect` timer countdown untuk `cooldownSeconds`  
+> 💡 *Catatan*: Mencegah error `ReferenceError: setIsConnecting is not defined` dan menjalankan hitung mundur detik jeda anti-spam secara otomatis di UI.
 
 ```javascript
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // Tambahkan baris state ini: 👇
+  // 1. Tambahkan baris state isConnecting ini: 👇
   const [isConnecting, setIsConnecting] = useState(false);
 
   const [isTransacting, setIsTransacting] = useState(false);
   const [txStatus, setTxStatus] = useState(null);
   const [txHash, setTxHash] = useState(null);
+
+  // 2. Tambahkan timer hitung mundur otomatis untuk periode cooldown anti-spam: 👇
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 ```
 
 ---
@@ -409,10 +418,23 @@ import './App.css';
       setTotalFractions(Number(total));
       setAvailableFractions(Number(available));
 
-      // Baca saldo fraksi investor jika akun sudah terhubung
+      // Baca saldo fraksi & waktu cooldown investor jika akun sudah terhubung
       if (userAddr) {
-        const bal = await contract.getInvestorFractions(userAddr);
+        const [bal, lastTime, cooldownPeriod] = await Promise.all([
+          contract.getInvestorFractions(userAddr),
+          contract.lastInvestmentTime(userAddr),
+          contract.COOLDOWN_PERIOD()
+        ]);
         setMyFractions(Number(bal));
+
+        // Hitung sisa detik cooldown berdasarkan waktu on-chain
+        const nowSec = Math.floor(Date.now() / 1000);
+        const remaining = (Number(lastTime) + Number(cooldownPeriod)) - nowSec;
+        if (remaining > 0 && Number(lastTime) > 0) {
+          setCooldownSeconds(remaining);
+        } else {
+          setCooldownSeconds(0);
+        }
       }
     } catch (err) {
       console.error("Gagal membaca data on-chain:", err);
@@ -437,6 +459,15 @@ import './App.css';
   const handleInvest = async (quantity) => {
     if (!account) {
       alert("Harap hubungkan dompet MetaMask terlebih dahulu!");
+      return;
+    }
+
+    // 1. Validasi Periode Cooldown Anti-Spam
+    if (cooldownSeconds > 0) {
+      setTxStatus({
+        type: 'error',
+        message: `Harap tunggu periode cooldown selesai (${cooldownSeconds} detik lagi)!`
+      });
       return;
     }
 
@@ -485,6 +516,9 @@ import './App.css';
       const receipt = await tx.wait();
       setTxHash(tx.hash);
 
+      // 5. Aktifkan timer hitung mundur cooldown 10 detik di UI
+      setCooldownSeconds(10);
+
       addTransaction({
         hash: tx.hash,
         type: 'Beli Fraksi',
@@ -503,9 +537,16 @@ import './App.css';
     } catch (err) {
       console.error("Transaksi on-chain gagal:", err);
       let errMsg = "Transaksi dibatalkan atau gagal dieksekusi.";
-      if (err.reason) errMsg = err.reason;
-      else if (err.message && err.message.includes("user rejected")) {
+      
+      // Deteksi pesan revert cooldown dari Smart Contract
+      if (err.reason) {
+        errMsg = err.reason;
+      } else if (err.message && (err.message.includes("cooldown") || err.message.includes("Harap tunggu"))) {
+        errMsg = "Revert Smart Contract: Harap tunggu periode cooldown selesai sebelum melakukan investasi lagi!";
+      } else if (err.message && err.message.includes("user rejected")) {
         errMsg = "Transaksi ditolak oleh pengguna di MetaMask.";
+      } else if (err.shortMessage) {
+        errMsg = err.shortMessage;
       }
       setTxStatus({ type: 'error', message: errMsg });
     } finally {
@@ -516,18 +557,32 @@ import './App.css';
 
 ---
 
-### 3.7. Update Props pada Komponen `<Navbar />`
-> 📍 **Lokasi**: Di dalam blok `return (` pada tag `<Navbar ... />` (sekitar baris 240)  
-> ✏️ **Yang Diganti**: Ubah prop `isConnecting={false}` menjadi `isConnecting={isConnecting}`  
-> 💡 *Catatan*: Agar tombol otomatis menampilkan status teks *"Menghubungkan..."* saat popup konfirmasi MetaMask sedang terbuka.
+### 3.7. Update Props pada `<Navbar />` & `<InvestBox />`
+> 📍 **Lokasi**: Di dalam blok `return (` pada file `src/App.jsx`  
+> ✏️ **Yang Diganti**: 
+> 1. Pada `<Navbar ... />`: Ubah `isConnecting={false}` menjadi `isConnecting={isConnecting}`  
+> 2. Pada `<InvestBox ... />`: Pastikan menyertakan prop `cooldownSeconds={cooldownSeconds}`  
+> 💡 *Catatan*: Agar tombol Navbar menampilkan teks "Menghubungkan...", dan tombol InvestBox otomatis menampilkan hitungan mundur cooldown anti-spam saat jeda aktif.
 
 ```jsx
+      {/* 1. Header Navbar */}
       <Navbar
         account={account}
         onConnect={handleConnectWallet}
         isConnecting={isConnecting} // <-- Ubah dari false menjadi isConnecting
         connectError={null}
         onDismissConnectError={() => { }}
+      />
+
+      {/* 2. Formulir Pembelian InvestBox */}
+      <InvestBox
+        priceEth={priceEth}
+        availableFractions={availableFractions}
+        cooldownSeconds={cooldownSeconds} // <-- Pastikan prop ini disertakan
+        onInvest={handleInvest}
+        isTransacting={isTransacting}
+        txStatus={txStatus}
+        txHash={txHash}
       />
 ```
 

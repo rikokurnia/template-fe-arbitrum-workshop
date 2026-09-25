@@ -25,7 +25,8 @@ export default function InvestBox({
   isTransacting, 
   txStatus, 
   txHash, 
-  availableFractions 
+  availableFractions,
+  cooldownSeconds = 0
 }) {
   // ---------------------------------------------------------------------------
   // 1. STATE LOKAL SEBELUM RETURN: Jumlah Unit yang Diketik Pengguna
@@ -113,29 +114,41 @@ export default function InvestBox({
         </div>
 
         {/* TOMBOL KONFIRMASI PEMBELIAN
-            • Dinonaktifkan (disabled) jika transaksi sedang berlangsung ATAU kuota habis.
-            • Menampilkan animasi spin 'Loader2' saat isTransacting === true. */}
+            • Dinonaktifkan (disabled) jika transaksi sedang berlangsung, kuota habis, ATAU masih dalam periode cooldown.
+            • Menampilkan animasi spin 'Loader2' saat isTransacting === true.
+            • Menampilkan sisa detik jeda anti-spam saat cooldownSeconds > 0. */}
         <button
           type="submit"
-          disabled={isTransacting || availableFractions === 0}
+          disabled={isTransacting || availableFractions === 0 || cooldownSeconds > 0}
           style={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             gap: '10px',
             padding: '14px',
-            background: isTransacting ? 'rgba(40, 160, 240, 0.5)' : 'var(--primary)',
-            color: '#fff',
+            background: isTransacting 
+              ? 'rgba(40, 160, 240, 0.5)' 
+              : cooldownSeconds > 0 
+                ? 'rgba(239, 68, 68, 0.2)' 
+                : 'var(--primary)',
+            color: cooldownSeconds > 0 ? 'var(--accent-red)' : '#fff',
+            border: cooldownSeconds > 0 ? '1px solid var(--accent-red)' : 'none',
             borderRadius: '12px',
             fontSize: '1rem',
             fontWeight: 'bold',
-            marginTop: '8px'
+            marginTop: '8px',
+            cursor: (isTransacting || availableFractions === 0 || cooldownSeconds > 0) ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s ease'
           }}
         >
           {isTransacting ? (
             <>
               <Loader2 size={20} className="animate-spin" />
               <span>Memproses Investasi di Arbitrum...</span>
+            </>
+          ) : cooldownSeconds > 0 ? (
+            <>
+              <span>⏳ Jeda Cooldown ({cooldownSeconds} detik)</span>
             </>
           ) : (
             <>

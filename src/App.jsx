@@ -10,7 +10,7 @@
 
 // 1. IMPORT DEPENDENSI & KOMPONEN
 // Mengimpor hook React untuk manajemen state, kelima komponen anak, dan stylesheet.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import PropertyCard from './components/PropertyCard';
 import InvestorPortfolio from './components/InvestorPortfolio';
@@ -45,6 +45,17 @@ export default function App() {
   const [account, setAccount] = useState(null);
   const [myFractions, setMyFractions] = useState(10);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  // Hook timer hitung mundur otomatis untuk periode cooldown anti-spam
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   // ---------------------------------------------------------------------------
   // 4. DEKLARASI STATE STATUS TRANSAKSI & FEEDBACK UI
@@ -136,6 +147,15 @@ export default function App() {
   //    silakan ikuti Langkah 3.6 pada file `PANDUAN-INTEGRASI-ONCHAIN.md`!
   // ---------------------------------------------------------------------------
   const handleInvest = (quantity) => {
+    // 1. Validasi Periode Cooldown Anti-Spam
+    if (cooldownSeconds > 0) {
+      setTxStatus({
+        type: 'error',
+        message: `Revert Cooldown: Harap tunggu periode cooldown selesai (${cooldownSeconds} detik lagi)!`
+      });
+      return;
+    }
+
     if (quantity > availableFractions) {
       setTxStatus({
         type: 'error',
@@ -156,6 +176,9 @@ export default function App() {
       setIsTransacting(false);
       setAvailableFractions((prev) => Math.max(0, prev - quantity));
       setMyFractions((prev) => prev + quantity);
+
+      // Aktifkan periode cooldown 10 detik setelah transaksi berhasil
+      setCooldownSeconds(10);
 
       // Membuat hash transaksi tiruan sepanjang 64 karakter heksadesimal
       const mockHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
@@ -216,6 +239,7 @@ export default function App() {
             <InvestBox
               priceEth={priceEth}
               availableFractions={availableFractions}
+              cooldownSeconds={cooldownSeconds}
               onInvest={handleInvest}
               isTransacting={isTransacting}
               txStatus={txStatus}
