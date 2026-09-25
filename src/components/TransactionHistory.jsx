@@ -1,7 +1,29 @@
+// =============================================================================
+// FILE: src/components/TransactionHistory.jsx
+// DESKRIPSI: Komponen Tabel Riwayat Transaksi On-Chain & Pembuktian Arbiscan
+// =============================================================================
+
+// 1. IMPORT DEPENDENSI
 import React from 'react';
 import { History, ExternalLink, CheckCircle2, Trash2, Clock } from 'lucide-react';
 
-export default function TransactionHistory({ transactions, onClearHistory }) {
+/**
+ * Komponen TransactionHistory
+ * 
+ * PROPS YANG DITERIMA DARI INDUK (App.jsx):
+ * @param {Array<object>} transactions - Daftar riwayat transaksi tersimpan (dari state / LocalStorage).
+ * @param {function} onClearHistory - Fungsi callback untuk membersihkan seluruh data riwayat transaksi.
+ */
+export default function TransactionHistory({ 
+  transactions, 
+  onClearHistory 
+}) {
+  // ---------------------------------------------------------------------------
+  // 1. HELPER SEBELUM RETURN: Pewarnaan Badge Berdasarkan Tipe Transaksi
+  // ---------------------------------------------------------------------------
+  // Mengembalikan objek gaya CSS (warna font, background lembut, dan warna border)
+  // sesuai dengan kategori aksi transaksi.
+  // ---------------------------------------------------------------------------
   const getBadgeStyle = (type) => {
     switch (type) {
       case 'Beli Fraksi':
@@ -31,6 +53,12 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // 2. HELPER SEBELUM RETURN: Format Jam & Tanggal Lokal Indonesia
+  // ---------------------------------------------------------------------------
+  // Mengubah angka timestamp milidetik (contoh: 1727220000000) menjadi format jam:menit:detik
+  // serta tanggal bulan yang mudah dibaca pengguna di Indonesia.
+  // ---------------------------------------------------------------------------
   const formatTime = (ts) => {
     if (!ts) return '';
     const date = new Date(ts);
@@ -38,6 +66,13 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
       ' · ' + date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
   };
 
+  // ---------------------------------------------------------------------------
+  // 3. HELPER SEBELUM RETURN: Pemotong Hash Transaksi (Truncate TX Hash)
+  // ---------------------------------------------------------------------------
+  // Hash transaksi blockchain memiliki panjang 66 karakter heksadesimal (0x...).
+  // Fungsi ini memotongnya menjadi 8 karakter depan + "..." + 6 karakter belakang.
+  // Contoh output: "0x3a7b8e...c0d1e2f".
+  // ---------------------------------------------------------------------------
   const truncateHash = (hash) => {
     if (!hash) return '';
     return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
@@ -45,10 +80,12 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
 
   return (
     <div className="card" style={{ marginTop: '20px' }}>
+      {/* HEADER TABEL RIWAYAT */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div className="card-title" style={{ margin: 0 }}>
           <History size={20} />
           <span>Bukti Transaksi On-Chain (Arbiscan Proof)</span>
+          {/* Badge penghitung total transaksi tersimpan */}
           <span style={{
             fontSize: '0.75rem',
             padding: '2px 8px',
@@ -61,6 +98,7 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
           </span>
         </div>
 
+        {/* TOMBOL BERSAPU RIWAYAT (HANYA MUNCUL JIKA ADA TRANSAKSI) */}
         {transactions.length > 0 && (
           <button
             onClick={onClearHistory}
@@ -72,7 +110,8 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
               color: 'var(--text-muted)',
               background: 'transparent',
               padding: '4px 8px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              cursor: 'pointer'
             }}
             title="Hapus riwayat lokal"
           >
@@ -81,6 +120,9 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
         )}
       </div>
 
+      {/* RENDER KONDISIONAL:
+          1. JIKA BELUM ADA TRANSAKSI: Tampilkan placeholder kosong yang edukatif.
+          2. JIKA SUDAH ADA TRANSAKSI: Tampilkan daftar item riwayat lengkap dengan link Arbiscan. */}
       {transactions.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -116,6 +158,7 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
                   gap: '12px'
                 }}
               >
+                {/* TIPE TRANSAKSI, DESKRIPSI & WAKTU */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span
                     style={{
@@ -145,6 +188,7 @@ export default function TransactionHistory({ transactions, onClearHistory }) {
                   </div>
                 </div>
 
+                {/* HASH TRANSAKSI & TAUTAN ARBISCAN SEPOLIA */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <code style={{
                     fontSize: '0.8rem',

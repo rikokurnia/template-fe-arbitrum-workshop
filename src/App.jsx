@@ -1,3 +1,15 @@
+// =============================================================================
+// FILE: src/App.jsx
+// DESKRIPSI: Komponen Utama (Pusat Otak, State Management, & Controller dApp)
+// =============================================================================
+// Di arsitektur React, file ini menerapkan pola "Lifting State Up":
+// Semua data penting (nama properti, harga, kuota, akun pengguna, riwayat transaksi)
+// dikelola secara terpusat di sini, lalu dialirkan ke bawah menuju komponen-komponen
+// anak (Navbar, PropertyCard, dll) melalui mekanisme Props.
+// =============================================================================
+
+// 1. IMPORT DEPENDENSI & KOMPONEN
+// Mengimpor hook React untuk manajemen state, kelima komponen anak, dan stylesheet.
 import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import PropertyCard from './components/PropertyCard';
@@ -7,24 +19,51 @@ import TransactionHistory from './components/TransactionHistory';
 import './App.css';
 
 export default function App() {
-  // -------------------------------------------------------------
-  // MOCK DATA & SIMULASI STATE (Frontend Template)
-  // -------------------------------------------------------------
-  const [account, setAccount] = useState(null);
+  // ---------------------------------------------------------------------------
+  // 2. DEKLARASI STATE METADATA PROPERTI (ASET RWA)
+  // ---------------------------------------------------------------------------
+  // Catatan Edukasi: Nilai awal sengaja diisi dengan data default (Mock Data)
+  // agar saat aplikasi pertama kali dijalankan di `localhost:5173`, tampilan dashboard
+  // langsung rapi, estetik, dan siap dipresentasikan.
+  // Saat integrasi on-chain diaktifkan, nilai-nilai ini akan otomatis ditimpa
+  // oleh data riil yang dibaca dari smart contract Arbitrum Sepolia!
+  // ---------------------------------------------------------------------------
   const [propertyName, setPropertyName] = useState('Bali Sunset Villa #01');
   const [symbol, setSymbol] = useState('VILLA-BALI-01');
   const [documentURI, setDocumentURI] = useState('ipfs://bafybeiexwukp7b44s42dk7fjybeduq4teqganfsmndrpxmr6im32meru3i');
   const [totalFractions, setTotalFractions] = useState(1000);
   const [availableFractions, setAvailableFractions] = useState(990);
   const [priceEth, setPriceEth] = useState('0.001');
+
+  // ---------------------------------------------------------------------------
+  // 3. DEKLARASI STATE AKUN INVESTOR
+  // ---------------------------------------------------------------------------
+  // • account: Alamat dompet MetaMask pengguna (null = belum terhubung).
+  // • myFractions: Jumlah lembar kepemilikan unit fraksi milik investor aktif.
+  // • cooldownSeconds: Sisa waktu jeda anti-spam (0 = siap melakukan transaksi).
+  // ---------------------------------------------------------------------------
+  const [account, setAccount] = useState(null);
   const [myFractions, setMyFractions] = useState(10);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
+  // ---------------------------------------------------------------------------
+  // 4. DEKLARASI STATE STATUS TRANSAKSI & FEEDBACK UI
+  // ---------------------------------------------------------------------------
+  // • isTransacting: Boolean penanda transaksi sedang dikirim ke sequencer Arbitrum.
+  // • txStatus: Objek pesan status { type: 'success'|'error'|'info', message: string }.
+  // • txHash: Hash transaksi heksadesimal untuk tautan pelacakan ke Arbiscan Sepolia.
+  // ---------------------------------------------------------------------------
   const [isTransacting, setIsTransacting] = useState(false);
   const [txStatus, setTxStatus] = useState(null);
   const [txHash, setTxHash] = useState(null);
 
-  // Riwayat transaksi dengan LocalStorage persistence
+  // ---------------------------------------------------------------------------
+  // 5. DEKLARASI STATE RIWAYAT TRANSAKSI DENGAN LOCALSTORAGE PERSISTENCE
+  // ---------------------------------------------------------------------------
+  // Pola "Lazy Initial State": Menggunakan fungsi callback di dalam `useState(() => ...)`
+  // agar pembacaan memori LocalStorage peramban hanya dilakukan 1x saat aplikasi pertama
+  // kali dimuat, bukan pada setiap kali komponen re-render.
+  // ---------------------------------------------------------------------------
   const [transactions, setTransactions] = useState(() => {
     try {
       const saved = localStorage.getItem('rwa_tx_history');
@@ -32,6 +71,7 @@ export default function App() {
     } catch (e) {
       console.error('Gagal membaca localStorage:', e);
     }
+    // Data transaksi contoh awal (Sample fallback):
     return [
       {
         hash: '0x3a7b8e1f5d6c9a4b2e0f183748291a0b5c7d8e9f1a2b3c4d5e6f7a8b9c0d1e2f',
@@ -43,9 +83,12 @@ export default function App() {
     ];
   });
 
+  // ---------------------------------------------------------------------------
+  // 6. HELPER FUNGSI: Menambah & Menyimpan Transaksi ke LocalStorage
+  // ---------------------------------------------------------------------------
   const addTransaction = (tx) => {
     setTransactions((prev) => {
-      const updated = [tx, ...prev];
+      const updated = [tx, ...prev]; // Transaksi baru ditaruh di urutan paling atas
       try {
         localStorage.setItem('rwa_tx_history', JSON.stringify(updated));
       } catch (e) {
@@ -55,6 +98,7 @@ export default function App() {
     });
   };
 
+  // Helper fungsi untuk menghapus seluruh riwayat lokal
   const handleClearHistory = () => {
     try {
       localStorage.removeItem('rwa_tx_history');
@@ -64,12 +108,33 @@ export default function App() {
     setTransactions([]);
   };
 
-  // Handler koneksi dompet pada mode Mock Frontend
+  // ---------------------------------------------------------------------------
+  // 7. HANDLER KONEKSI DOMPET (PADA MODE MOCK TEMPLATE)
+  // ---------------------------------------------------------------------------
+  // Pada tahap template ini, tombol Connect Wallet menampilkan pop-up panduan simulasi.
+  // 👉 Untuk menggantinya dengan koneksi MetaMask asli & auto-switch ke Arbitrum Sepolia,
+  //    silakan ikuti Langkah 3.4 pada file `PANDUAN-INTEGRASI-ONCHAIN.md`!
+  // ---------------------------------------------------------------------------
   const handleConnectWallet = () => {
-    alert("ℹ️ Mode Mock Frontend:\nFitur Connect Wallet (MetaMask) dinonaktifkan pada tahap ini.\nSeluruh data dan transaksi saat ini berjalan dalam mode simulasi (mock).");
+    alert(
+      "ℹ️ Mode Mock Frontend:\n" +
+      "Fitur Connect Wallet (MetaMask) dinonaktifkan pada template awal ini.\n" +
+      "Seluruh data dan transaksi saat ini berjalan dalam mode simulasi lokal.\n\n" +
+      "Ikuti panduan di PANDUAN-INTEGRASI-ONCHAIN.md untuk menghubungkannya ke MetaMask & Smart Contract riil!"
+    );
   };
 
-  // Simulasi investasi pembelian fraksi
+  // ---------------------------------------------------------------------------
+  // 8. HANDLER TRANSAKSI INVESTASI PEMBELIAN FRAKSI (PADA MODE MOCK TEMPLATE)
+  // ---------------------------------------------------------------------------
+  // Menyimulasikan alur transaksi on-chain:
+  // 1. Memvalidasi ketersediaan kuota fraksi.
+  // 2. Mengaktifkan status loading (isTransacting = true).
+  // 3. Menunggu jeda waktu (setTimeout 1 detik) seolah memproses blok di blockchain.
+  // 4. Memotong sisa kuota, menambah saldo unit investor, dan membuat hash transaksi acak.
+  // 👉 Untuk menggantinya dengan transaksi on-chain riil via Smart Contract `buyFractions()`,
+  //    silakan ikuti Langkah 3.6 pada file `PANDUAN-INTEGRASI-ONCHAIN.md`!
+  // ---------------------------------------------------------------------------
   const handleInvest = (quantity) => {
     if (quantity > availableFractions) {
       setTxStatus({
@@ -86,14 +151,17 @@ export default function App() {
     });
     setTxHash(null);
 
+    // Simulasi waktu tunggu sequencer Layer-2 Arbitrum (~1 detik)
     setTimeout(() => {
       setIsTransacting(false);
       setAvailableFractions((prev) => Math.max(0, prev - quantity));
       setMyFractions((prev) => prev + quantity);
 
+      // Membuat hash transaksi tiruan sepanjang 64 karakter heksadesimal
       const mockHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       setTxHash(mockHash);
 
+      // Catat ke riwayat transaksi lokal
       addTransaction({
         hash: mockHash,
         type: 'Beli Fraksi',
@@ -109,9 +177,12 @@ export default function App() {
     }, 1000);
   };
 
+  // ---------------------------------------------------------------------------
+  // 9. TATA LETAK JSX (RETURN UI)
+  // ---------------------------------------------------------------------------
   return (
     <div className="app-container">
-      {/* Header & Status Jaringan */}
+      {/* HEADER & STATUS JARINGAN (Navbar) */}
       <Navbar
         account={account}
         onConnect={handleConnectWallet}
@@ -122,7 +193,7 @@ export default function App() {
 
       <main style={{ marginTop: '24px' }}>
         <div className="grid-dashboard">
-          {/* Kolom Kiri: Kartu Aset & Portofolio Investor */}
+          {/* KOLOM KIRI: Kartu Detail Aset Properti & Portofolio Kepemilikan Investor */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <PropertyCard
               propertyName={propertyName}
@@ -140,12 +211,11 @@ export default function App() {
             />
           </div>
 
-          {/* Kolom Kanan: Form Transaksi Beli Fraksi */}
+          {/* KOLOM KANAN: Formulir Pembelian Unit Fraksi (InvestBox) */}
           <div>
             <InvestBox
               priceEth={priceEth}
               availableFractions={availableFractions}
-              cooldownSeconds={cooldownSeconds}
               onInvest={handleInvest}
               isTransacting={isTransacting}
               txStatus={txStatus}
@@ -154,10 +224,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* Riwayat Transaksi Lokal */}
+        {/* BAGIAN BAWAH: Tabel Riwayat Transaksi Persisten (Arbiscan Proof) */}
         <TransactionHistory
           transactions={transactions}
-          onClear={handleClearHistory}
+          onClearHistory={handleClearHistory}
         />
       </main>
     </div>

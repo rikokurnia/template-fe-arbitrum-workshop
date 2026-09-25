@@ -1,11 +1,55 @@
+// =============================================================================
+// FILE: src/components/InvestBox.jsx
+// DESKRIPSI: Komponen Formulir Pembelian Unit Fraksi Properti (Investasi RWA)
+// =============================================================================
+
+// 1. IMPORT DEPENDENSI
+// Mengimpor hook useState untuk state lokal form input, dan icon Lucide.
 import React, { useState } from 'react';
 import { ShoppingBag, AlertCircle, CheckCircle2, Loader2, ExternalLink } from 'lucide-react';
 
-export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus, txHash, availableFractions }) {
+/**
+ * Komponen InvestBox
+ * 
+ * PROPS YANG DITERIMA DARI INDUK (App.jsx):
+ * @param {string} priceEth - Harga fraksi dalam satuan ETH per lembar.
+ * @param {function} onInvest - Fungsi handler dari App.jsx yang dieksekusi saat user klik tombol Beli.
+ * @param {boolean} isTransacting - Status loading true saat transaksi sedang diproses di jaringan Arbitrum.
+ * @param {object|null} txStatus - Objek status feedback transaksi { type: 'success'|'error'|'info', message: string }.
+ * @param {string|null} txHash - Hash transaksi Ethereum (0x...) untuk tautan pelacakan ke Arbiscan.
+ * @param {number} availableFractions - Sisa kuota unit fraksi yang masih tersedia untuk dibeli.
+ */
+export default function InvestBox({ 
+  priceEth, 
+  onInvest, 
+  isTransacting, 
+  txStatus, 
+  txHash, 
+  availableFractions 
+}) {
+  // ---------------------------------------------------------------------------
+  // 1. STATE LOKAL SEBELUM RETURN: Jumlah Unit yang Diketik Pengguna
+  // ---------------------------------------------------------------------------
+  // State ini sengaja diletakkan di sini (bukan di App.jsx) karena hanya formulir ini
+  // yang berkepentingan dengan input angka sementara sebelum tombol 'Konfirmasi' ditekan.
+  // ---------------------------------------------------------------------------
   const [quantity, setQuantity] = useState(1);
+
+  // ---------------------------------------------------------------------------
+  // 2. KALKULASI REAL-TIME SEBELUM RETURN: Total Biaya Pembayaran (ETH)
+  // ---------------------------------------------------------------------------
+  // Mengalikan jumlah unit yang diinput pengguna dengan harga per lembar secara reaktif.
+  // Dibulatkan menjadi 4 desimal dengan `.toFixed(4)`.
+  // ---------------------------------------------------------------------------
   const price = parseFloat(priceEth || '0.001');
   const totalEth = (quantity * price).toFixed(4);
 
+  // ---------------------------------------------------------------------------
+  // 3. HANDLER SUBMIT FORM SEBELUM RETURN
+  // ---------------------------------------------------------------------------
+  // • e.preventDefault(): Sangat penting untuk mencegah browser me-refresh halaman!
+  // • onInvest(quantity): Mengoper nilai angka `quantity` ke fungsi `handleInvest` di App.jsx.
+  // ---------------------------------------------------------------------------
   const handleSubmit = (e) => {
     e.preventDefault();
     if (quantity > 0) {
@@ -15,13 +59,16 @@ export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus,
 
   return (
     <div className="card" style={{ marginTop: '20px' }}>
+      {/* HEADER KARTU */}
       <div className="card-title">
         <ShoppingBag size={20} />
         <span>Beli Unit Fraksi Properti</span>
       </div>
 
+      {/* FORMULIR INVESTASI */}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          {/* INPUT UNIT FRAKSI (CONTROLLED INPUT) */}
           <div style={{ flex: '1' }}>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
               Jumlah Unit Fraksi
@@ -46,6 +93,7 @@ export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus,
             />
           </div>
 
+          {/* ESTIMASI TOTAL PEMBAYARAN ETH OTOMATIS */}
           <div style={{ flex: '1' }}>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
               Total Pembayaran (ETH)
@@ -64,6 +112,9 @@ export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus,
           </div>
         </div>
 
+        {/* TOMBOL KONFIRMASI PEMBELIAN
+            • Dinonaktifkan (disabled) jika transaksi sedang berlangsung ATAU kuota habis.
+            • Menampilkan animasi spin 'Loader2' saat isTransacting === true. */}
         <button
           type="submit"
           disabled={isTransacting || availableFractions === 0}
@@ -94,7 +145,8 @@ export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus,
         </button>
       </form>
 
-      {/* Banner status transaksi */}
+      {/* BANNER STATUS TRANSAKSI & LINK AUDIT ARBISCAN
+          Hanya muncul jika state `txStatus` memiliki nilai (tidak null). */}
       {txStatus && (
         <div style={{
           marginTop: '16px',
@@ -113,6 +165,7 @@ export default function InvestBox({ priceEth, onInvest, isTransacting, txStatus,
           )}
           <div style={{ flex: 1, fontSize: '0.9rem' }}>
             {txStatus.message}
+            {/* Jika txHash tersedia, sertakan tautan ke explorer resmi Arbiscan Sepolia */}
             {txHash && (
               <div style={{ marginTop: '4px' }}>
                 <a
